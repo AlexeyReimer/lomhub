@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 
 const navigation = [
-  { label: "Карта", href: "#map" },
+  { label: "Карта", href: "/map" },
   { label: "Цены", href: "#prices" },
   { label: "Приемки", href: "#yards" },
   { label: "Для бизнеса", href: "#business" },
