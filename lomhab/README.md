@@ -1,68 +1,63 @@
-# ЛомХаб
 
-ЛомХаб — каркас сервиса для поиска пунктов приема металлолома и сравнения цен рядом с пользователем.
 
-## Стек
-
-- Next.js 15 App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Prisma ORM
-- PostgreSQL
-- Docker и Docker Compose
-- Яндекс Карты
-
-## Запуск
-
-1. Скопируйте переменные окружения:
-
-```bash
-cp .env.example .env
-```
-
-2. Запустите приложение и PostgreSQL:
-
-```bash
-docker compose up
-```
-
-Приложение будет доступно по адресу `http://localhost:3000`.
-
-## Локальная разработка без Docker
-
-```bash
-npm install
-npm run prisma:generate
-npm run dev
-```
-
-## Проверки
-
-```bash
-npm run lint
-npm run typecheck
-npm run format:check
-```
-
-## Структура
-
-```text
-src/
-  app/
-  components/
-    dashboard/
-    layout/
-    map/
-    ui/
-    yard/
-  hooks/
-  lib/
-  services/
-  styles/
-  types/
+ЛомХаб
+О проекте
+ЛомХаб — агрегатор пунктов приёма металлолома России.
+Пользователь может найти ближайшую приёмку, сравнить цены и выбрать наиболее выгодное
+предложение.
+Основные возможности
+Карта приёмок
+Поиск по городу
+Поиск по металлу
+Сравнение цен
+Карточка приёмки
+Кабинет владельца
+История изменения цен
+## Отзывы
+Система лояльности
+## Технологии
+## Next.js 15
+## React 19
+TypeScript
+Tailwind CSS
+## Prisma
+PostgreSQL
+## Docker
+Структура проекта
 database/
 docs/
-specs/
 public/
-```
+src/
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## •
+## 1
+
+## Документация
+docs/001_VISION.md
+docs/002_PRODUCT_REQUIREMENTS.md
+docs/003_UI_SPEC.md
+docs/004_ARCHITECTURE.md
+docs/005_DATABASE.md
+CONTRIBUTING.md
+CODE_STYLE.md
+DESIGN_SYSTEM.md
+AGENTS.md
+## Запуск
+docker compose up
+Статус проекта
+MVP в активной разработке.
+## 2

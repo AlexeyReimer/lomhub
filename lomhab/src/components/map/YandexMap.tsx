@@ -2,81 +2,112 @@
 
 import Script from "next/script";
 import * as React from "react";
-import * as ReactDOM from "react-dom";
-import { MapMarker, type YMapMarkerComponent } from "@/components/map/MapMarker";
 import type { Yard } from "@/lib/mock-yards";
-
-type YMapComponent = React.ElementType<
-  React.PropsWithChildren<{
-    location: {
-      bounds: [[number, number], [number, number]];
-    };
-    className?: string;
-    mode?: "raster" | "vector";
-    theme?: "light" | "dark";
-    behaviors?: string[];
-  }>
->;
-
-type YMapLayerComponent = React.ElementType<Record<string, never>>;
-
-type YandexMapComponents = {
-  YMap: YMapComponent;
-  YMapDefaultSchemeLayer: YMapLayerComponent;
-  YMapDefaultFeaturesLayer: YMapLayerComponent;
-  YMapMarker: YMapMarkerComponent;
-};
 
 type YandexMapProps = {
   yards: Yard[];
+  apiKey: string;
+  initialCenter: [number, number];
+  initialZoom: number;
 };
 
 function getBounds(yards: Yard[]): [[number, number], [number, number]] {
-  const lngs = yards.map((yard) => yard.coordinates.lng);
   const lats = yards.map((yard) => yard.coordinates.lat);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const lngPadding = Math.max((maxLng - minLng) * 0.14, 1);
-  const latPadding = Math.max((maxLat - minLat) * 0.14, 1);
+  const lngs = yards.map((yard) => yard.coordinates.lng);
 
   return [
-    [minLng - lngPadding, minLat - latPadding],
-    [maxLng + lngPadding, maxLat + latPadding],
+    [Math.min(...lats), Math.min(...lngs)],
+    [Math.max(...lats), Math.max(...lngs)],
   ];
 }
 
-export function YandexMap({ yards }: YandexMapProps) {
-  const [components, setComponents] = React.useState<YandexMapComponents | null>(null);
-  const [selectedYard, setSelectedYard] = React.useState<Yard | null>(yards[0] ?? null);
-  const [loadError, setLoadError] = React.useState(false);
-  const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
-  const bounds = React.useMemo(() => getBounds(yards), [yards]);
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
-  const initializeMap = React.useCallback(async () => {
-    if (!window.ymaps3 || components) {
+function getBalloonContent(yard: Yard) {
+  const rating = yard.rating == null ? "Нет оценок" : `${yard.rating} ★`;
+
+  return `
+    <div style="min-width:260px;padding:6px 2px;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+      <h3 style="margin:0 0 10px;font-size:17px;line-height:23px;font-weight:700;">${escapeHtml(yard.name)}</h3>
+      <div style="margin:0 0 12px;color:#64748b;font-size:13px;line-height:18px;">${escapeHtml(yard.address)}</div>
+      <div style="display:grid;gap:8px;margin-bottom:14px;font-size:14px;line-height:20px;">
+        <div style="display:flex;justify-content:space-between;gap:14px;"><span style="color:#64748b;">Рейтинг</span><strong>${rating}</strong></div>
+        <div style="display:flex;justify-content:space-between;gap:14px;"><span style="color:#64748b;">Отзывы</span><strong>${yard.reviewCount}</strong></div>
+        <div style="display:flex;justify-content:space-between;gap:14px;"><span style="color:#64748b;">Черный лом</span><strong style="color:#047857;">${escapeHtml(yard.ferrousPrice)}</strong></div>
+      </div>
+      <button type="button" style="width:100%;height:36px;border:0;border-radius:12px;background:#16a34a;color:white;font-weight:700;cursor:pointer;">
+        Подробнее
+      </button>
+    </div>
+  `;
+}
+
+export function YandexMap({ yards, apiKey, initialCenter, initialZoom }: YandexMapProps) {
+  const mapRootRef = React.useRef<HTMLDivElement | null>(null);
+  const mapRef = React.useRef<YMapInstance | null>(null);
+  const [loadError, setLoadError] = React.useState(false);
+  const hasApiKey = apiKey.trim().length > 0;
+
+  const initializeMap = React.useCallback(() => {
+    const ymaps = window.ymaps;
+
+    if (!hasApiKey || !mapRootRef.current || !ymaps || mapRef.current) {
       return;
     }
 
-    await window.ymaps3.ready;
-    const ymaps3React = await window.ymaps3.import("@yandex/ymaps3-reactify");
-    const reactify = ymaps3React.reactify.bindTo(React, ReactDOM);
-    const mapComponents = reactify.module(window.ymaps3);
+    ymaps.ready(() => {
+      if (!mapRootRef.current || mapRef.current) {
+        return;
+      }
 
-    setComponents({
-      YMap: mapComponents.YMap as YMapComponent,
-      YMapDefaultSchemeLayer: mapComponents.YMapDefaultSchemeLayer as YMapLayerComponent,
-      YMapDefaultFeaturesLayer: mapComponents.YMapDefaultFeaturesLayer as YMapLayerComponent,
-      YMapMarker: mapComponents.YMapMarker as YMapMarkerComponent,
+      const map = new ymaps.Map(mapRootRef.current, {
+        center: initialCenter,
+        controls: ["zoomControl", "fullscreenControl"],
+        zoom: initialZoom,
+      });
+
+      yards.forEach((yard) => {
+        const placemark = new ymaps.Placemark(
+          [yard.coordinates.lat, yard.coordinates.lng],
+          {
+            balloonContent: getBalloonContent(yard),
+            hintContent: yard.name,
+          },
+          {
+            iconColor: yard.status === "Открыто" ? "#16a34a" : "#64748b",
+          },
+        );
+
+        map.geoObjects.add(placemark);
+      });
+
+      if (yards.length > 1) {
+        map.setBounds(getBounds(yards), {
+          checkZoomRange: true,
+          duration: 300,
+          zoomMargin: 48,
+        });
+      }
+
+      mapRef.current = map;
     });
-  }, [components]);
+  }, [hasApiKey, initialCenter, initialZoom, yards]);
 
-  const scriptSrc = apiKey
-    ? `https://api-maps.yandex.ru/v3/?apikey=${apiKey}&lang=ru_RU`
-    : "https://api-maps.yandex.ru/v3/?lang=ru_RU";
+  React.useEffect(() => {
+    return () => {
+      mapRef.current?.destroy();
+      mapRef.current = null;
+    };
+  }, []);
 
-  if (loadError) {
+  if (!hasApiKey || loadError) {
     return (
       <div className="grid min-h-[520px] place-items-center rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">
         Не удалось загрузить Яндекс Карту. Проверьте ключ NEXT_PUBLIC_YANDEX_MAPS_API_KEY.
@@ -84,43 +115,15 @@ export function YandexMap({ yards }: YandexMapProps) {
     );
   }
 
-  const mapContent = components ? (
-    <components.YMap
-      location={{ bounds }}
-      mode="vector"
-      theme="light"
-      behaviors={["drag", "scrollZoom", "dblClick"]}
-      className="h-full w-full"
-    >
-      <components.YMapDefaultSchemeLayer />
-      <components.YMapDefaultFeaturesLayer />
-      {yards.map((yard) => (
-        <MapMarker
-          key={yard.id}
-          yard={yard}
-          isSelected={selectedYard?.id === yard.id}
-          YMapMarker={components.YMapMarker}
-          onSelect={setSelectedYard}
-        />
-      ))}
-    </components.YMap>
-  ) : (
-    <div className="grid h-full place-items-center bg-slate-100 text-sm font-medium text-slate-500">
-      Загрузка карты...
-    </div>
-  );
-
   return (
     <div className="relative h-[calc(100vh-10rem)] min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm sm:h-[620px]">
       <Script
-        src={scriptSrc}
+        src={`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`}
         strategy="afterInteractive"
-        onReady={() => {
-          void initializeMap();
-        }}
+        onReady={initializeMap}
         onError={() => setLoadError(true)}
       />
-      {mapContent}
+      <div ref={mapRootRef} className="h-full w-full" />
     </div>
   );
 }

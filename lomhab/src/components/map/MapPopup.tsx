@@ -26,7 +26,7 @@ export function MapPopup({ yard }: MapPopupProps) {
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-slate-500">Минимальная цена</span>
-            <span className="font-semibold text-emerald-700">{yard.minPrice}</span>
+            <span className="font-semibold text-emerald-700">{yard.ferrousPrice}</span>
           </div>
         </div>
         <Button size="sm" className="mt-1 w-full">

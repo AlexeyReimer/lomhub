@@ -4,8 +4,11 @@ import { YandexMap } from "@/components/map/YandexMap";
 import { Container } from "@/components/ui/container";
 import { getYards } from "@/services/yards";
 
+export const dynamic = "force-dynamic";
+
 export default async function MapPage() {
-  const yards = await getYards();
+  const yards = await getYards({ citySlug: "krasnoyarsk" });
+  const yandexMapsApiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY ?? "";
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -25,7 +28,12 @@ export default async function MapPage() {
               Тестовые точки для MVP. Источник данных вынесен в сервисный слой.
             </p>
           </div>
-          <YandexMap yards={yards} />
+          <YandexMap
+            yards={yards}
+            apiKey={yandexMapsApiKey}
+            initialCenter={[55.9967, 92.838]}
+            initialZoom={11}
+          />
         </Container>
       </section>
       <Footer />
